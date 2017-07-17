@@ -1,0 +1,309 @@
+{
+ "metadata": {
+  "name": "",
+  "signature": "sha256:d43cff970859d5f04c34f6343cde497529499d333699abb84332a27ce65b1780"
+ },
+ "nbformat": 3,
+ "nbformat_minor": 0,
+ "worksheets": [
+  {
+   "cells": [
+    {
+     "cell_type": "markdown",
+     "metadata": {},
+     "source": [
+      "## Problem 12.1. HDF.\n",
+      "\n",
+      "This problem will give you a chance to practice what you have learned in\n",
+      "  [lesson 1](http://nbviewer.ipython.org/github/INFO490/spring2015/blob/master/week12/intro2de.ipynb)\n",
+      "  about saving a DataFrame to an HDF file."
+     ]
+    },
+    {
+     "cell_type": "code",
+     "collapsed": false,
+     "input": [
+      "import numpy as np\n",
+      "import pandas as pd"
+     ],
+     "language": "python",
+     "metadata": {},
+     "outputs": [],
+     "prompt_number": 1
+    },
+    {
+     "cell_type": "markdown",
+     "metadata": {},
+     "source": [
+      "You should use\n",
+      "  [columns 9-14](http://stat-computing.org/dataexpo/2009/the-data.html)\n",
+      "  of `2001.csv`:\n",
+      "  `UniqueCarrier`, `FlightNum`, `TailNum`, `ActualElapsedTime`, `CRSElapsedTime`,\n",
+      "  and `AirTime`."
+     ]
+    },
+    {
+     "cell_type": "code",
+     "collapsed": false,
+     "input": [
+      "ucs = list(range(8, 14)) # the count starts at 0\n",
+      "cnms = ['UniqueCarrier',\n",
+      "        'FlightNum',\n",
+      "        'TailNum',\n",
+      "        'ActualElapsedTime',\n",
+      "        'CRSElapsedTime',\n",
+      "        'AirTime']"
+     ],
+     "language": "python",
+     "metadata": {},
+     "outputs": [],
+     "prompt_number": 2
+    },
+    {
+     "cell_type": "markdown",
+     "metadata": {},
+     "source": [
+      "### Function: csv\\_to\\_hdf()\n",
+      "\n",
+      "Write a function that takes three strings:  the path to the CSV file, the path to the HDF file, and the table name.\n",
+      "  \n",
+      "- Use six columns listed in `ucs` and `cnms`.\n",
+      "- Don't forget that there may be missing values.\n",
+      "  You should drop all rows that have missing values in any or all columns of that row.\n",
+      "- After you use `pandas.read_csv()` to create a DataFrame,\n",
+      "  use [`pandas.DataFrame.info()`](http://pandas.pydata.org/pandas-docs/version/0.13.1/generated/pandas.DataFrame.info.html)\n",
+      "  or [`pandas.DataFrame.dtypes`](http://pandas.pydata.org/pandas-docs/version/0.13.1/generated/pandas.DataFrame.html)\n",
+      "  to check the data types in the DataFrame. \n",
+      "  If you didn't specify which data types should be used,\n",
+      "  it is likely that Pandas has selected the biggest data type for each column.\n",
+      "  You should change the data type of each column to its optimal data type.\n",
+      "  \n",
+      "  To do this, use [`Pandas.DataFrame.describe()`](http://pandas.pydata.org/pandas-docs/version/0.13.1/generated/pandas.DataFrame.describe.html)\n",
+      "  to check the minimum and maximum values of each column.\n",
+      "  Compare them with the ranges of each data type. You can find this information in the docs,\n",
+      "  e.g. [Numpy data types](http://docs.scipy.org/doc/numpy/user/basics.types.html),\n",
+      "  or use [numpy.iinfo()](http://docs.scipy.org/doc/numpy/reference/generated/numpy.iinfo.html)\n",
+      "  for ints and\n",
+      "  [numpy.finfo()](http://docs.scipy.org/doc/numpy/reference/generated/numpy.finfo.html)\n",
+      "  for floats.\n",
+      "  For example, to find the minimum and maximum values that one-byte (8 bits) unsigned integer would hold,\n",
+      "  run\n",
+      "  \n",
+      "  ```python\n",
+      "  print(np.iinfo(np.uint8))\n",
+      "  ```\n",
+      "  \n",
+      "  which prints out\n",
+      "  \n",
+      "  ```text\n",
+      "  Machine parameters for uint8\n",
+      "  ---------------------------------------------------------------------\n",
+      "  min = 0\n",
+      "  max = 255\n",
+      "  ---------------------------------------------------------------------\n",
+      "  ```\n",
+      "\n",
+      "- The function should take three strings.\n",
+      "  The first string is the file path and/or name to the CSV file, \n",
+      "  e.g.  `/data/airline/2001.csv`.\n",
+      "  The second string is the file path and/or name that points to the\n",
+      "  HDF file you have created, e.g. `/data/airline/w12p1.h5`\n",
+      "  The third string is the key that can be used to access the table\n",
+      "  in the HDF database, i.e. the string `\"table\"` you would pass as the\n",
+      "  `key` argument in \n",
+      "  \n",
+      "  ```python\n",
+      "  store_path = '/data/airline/w12p1.h5'\n",
+      "  df = pd.read_hdf(store_path, key='table')\n",
+      "  ```\n",
+      "  \n",
+      "  You can list the keys with\n",
+      "  \n",
+      "  ```python\n",
+      "  with pd.get_store(store_path) as store:\n",
+      "    print(store.keys())\n",
+      "  ```\n",
+      "  \n",
+      "  which should print out\n",
+      "  \n",
+      "  ```text\n",
+      "  ['/', '/table']\n",
+      "  ```\n",
+      "  \n",
+      "- In the end, when I ran\n",
+      "\n",
+      "  ```python\n",
+      "  csv_path = '/data/airline/2001.csv'\n",
+      "  store_path = '/data/airline/w12p1.h5'\n",
+      "  table_name = 'table'\n",
+      "\n",
+      "  csv_to_hdf(csv_path, store_path, table_name)\n",
+      "  !ls -lah $store_path\n",
+      "  ```\n",
+      "  \n",
+      "  I got\n",
+      "  \n",
+      "  ```text\n",
+      "  -rw-r--r-- 1 root root 144M Apr  9 04:35 /data/airline/w12p1.h5\n",
+      "  ```\n",
+      "  \n",
+      "  So your HDF file should be **no larger than 144M**."
+     ]
+    },
+    {
+     "cell_type": "code",
+     "collapsed": false,
+     "input": [
+      "%%bash\n",
+      "head /data/airline/2001.csv"
+     ],
+     "language": "python",
+     "metadata": {},
+     "outputs": [
+      {
+       "output_type": "stream",
+       "stream": "stdout",
+       "text": [
+        "Year,Month,DayofMonth,DayOfWeek,DepTime,CRSDepTime,ArrTime,CRSArrTime,UniqueCarrier,FlightNum,TailNum,ActualElapsedTime,CRSElapsedTime,AirTime,ArrDelay,DepDelay,Origin,Dest,Distance,TaxiIn,TaxiOut,Cancelled,CancellationCode,Diverted,CarrierDelay,WeatherDelay,NASDelay,SecurityDelay,LateAircraftDelay\n",
+        "2001,1,17,3,1806,1810,1931,1934,US,375,N700\ufffd\ufffd,85,84,60,-3,-4,BWI,CLT,361,5,20,0,NA,0,NA,NA,NA,NA,NA\n",
+        "2001,1,18,4,1805,1810,1938,1934,US,375,N713\ufffd\ufffd,93,84,64,4,-5,BWI,CLT,361,9,20,0,NA,0,NA,NA,NA,NA,NA\n",
+        "2001,1,19,5,1821,1810,1957,1934,US,375,N702\ufffd\ufffd,96,84,80,23,11,BWI,CLT,361,6,10,0,NA,0,NA,NA,NA,NA,NA\n",
+        "2001,1,20,6,1807,1810,1944,1934,US,375,N701\ufffd\ufffd,97,84,66,10,-3,BWI,CLT,361,4,27,0,NA,0,NA,NA,NA,NA,NA\n",
+        "2001,1,21,7,1810,1810,1954,1934,US,375,N768\ufffd\ufffd,104,84,62,20,0,BWI,CLT,361,4,38,0,NA,0,NA,NA,NA,NA,NA\n",
+        "2001,1,22,1,1807,1810,1931,1934,US,375,N722\ufffd\ufffd,84,84,61,-3,-3,BWI,CLT,361,12,11,0,NA,0,NA,NA,NA,NA,NA\n",
+        "2001,1,23,2,1802,1810,1924,1934,US,375,N732\ufffd\ufffd,82,84,61,-10,-8,BWI,CLT,361,5,16,0,NA,0,NA,NA,NA,NA,NA\n",
+        "2001,1,24,3,1804,1810,1922,1934,US,375,N737\ufffd\ufffd,78,84,60,-12,-6,BWI,CLT,361,4,14,0,NA,0,NA,NA,NA,NA,NA\n",
+        "2001,1,25,4,1812,1810,1925,1934,US,375,N767\ufffd\ufffd,73,84,52,-9,2,BWI,CLT,361,6,15,0,NA,0,NA,NA,NA,NA,NA\n"
+       ]
+      }
+     ],
+     "prompt_number": 6
+    },
+    {
+     "cell_type": "code",
+     "collapsed": false,
+     "input": [],
+     "language": "python",
+     "metadata": {},
+     "outputs": []
+    },
+    {
+     "cell_type": "code",
+     "collapsed": false,
+     "input": [
+      "def csv_to_hdf(file_path, store_path, table_name):\n",
+      "    '''\n",
+      "    Takes three strings. Returns None if successful.\n",
+      "    \n",
+      "    Parameters\n",
+      "    ----------\n",
+      "    file_path: A str. The file path and/or name of the CSV file, e.g. '/data/airline/2001.csv'.\n",
+      "    store_path: A str. The string you would use as the first argument in `pandas.read_hdf()`.\n",
+      "    table_name: A str. The string you would use in the 'key` argument of `pandas.read_hdf()`.\n",
+      "    \n",
+      "    Returns\n",
+      "    -------\n",
+      "    None.\n",
+      "    '''\n",
+      "    \n",
+      "    #read the csv into a pandas DataFrame.\n",
+      "    data = pd.read_csv(file_path, header = 0, na_values = ['NA'], usecols = ucs, names = cnms, encoding = \"latin-1\")\n",
+      "    \n",
+      "    #filter out NA values\n",
+      "    data = data.dropna()\n",
+      "    #print(data.describe()) this was used to determine type.\n",
+      "    \n",
+      "    \n",
+      "    data[['FlightNum']] = data[['FlightNum']].astype(np.uint16)\n",
+      "    data[['ActualElapsedTime']] = data[['ActualElapsedTime']].astype(np.int16)\n",
+      "    data[['CRSElapsedTime']] = data[['CRSElapsedTime']].astype(np.uint16)\n",
+      "    data[['AirTime']] = data[['AirTime']].astype(np.uint16)\n",
+      "  \n",
+      "    \n",
+      "    #convert the DataFrame to an HDF data store\n",
+      "    data.to_hdf(store_path, table_name, append = False) \n",
+      "    \n",
+      "    return None"
+     ],
+     "language": "python",
+     "metadata": {},
+     "outputs": [],
+     "prompt_number": 13
+    },
+    {
+     "cell_type": "markdown",
+     "metadata": {},
+     "source": [
+      "Run the following the code cell to test your function."
+     ]
+    },
+    {
+     "cell_type": "code",
+     "collapsed": false,
+     "input": [
+      "csv_path = '/data/airline/2001.csv' # edit the path if necessary\n",
+      "store_path = '/data/airline/w12p1.h5' # edit if you want\n",
+      "table_name = 'table' # edit if you want\n",
+      "\n",
+      "# make sure that we are starting from scratch\n",
+      "!rm -f $store_path\n",
+      "\n",
+      "# test the function\n",
+      "csv_to_hdf(csv_path, store_path, table_name) # edit the file path if necessary\n",
+      "\n",
+      "# check results\n",
+      "!ls -lah $store_path"
+     ],
+     "language": "python",
+     "metadata": {},
+     "outputs": [
+      {
+       "output_type": "stream",
+       "stream": "stdout",
+       "text": [
+        "-rw-r--r-- 1 root root 144M Apr 17 18:12 /data/airline/w12p1.h5\r\n"
+       ]
+      }
+     ],
+     "prompt_number": 14
+    },
+    {
+     "cell_type": "code",
+     "collapsed": false,
+     "input": [],
+     "language": "python",
+     "metadata": {},
+     "outputs": [
+      {
+       "ename": "OSError",
+       "evalue": "[Errno 12] Cannot allocate memory",
+       "output_type": "pyerr",
+       "traceback": [
+        "\u001b[1;31m---------------------------------------------------------------------------\u001b[0m\n\u001b[1;31mOSError\u001b[0m                                   Traceback (most recent call last)",
+        "\u001b[1;32m<ipython-input-5-806ae0daf636>\u001b[0m in \u001b[0;36m<module>\u001b[1;34m()\u001b[0m\n\u001b[1;32m----> 1\u001b[1;33m \u001b[0mget_ipython\u001b[0m\u001b[1;33m(\u001b[0m\u001b[1;33m)\u001b[0m\u001b[1;33m.\u001b[0m\u001b[0mrun_cell_magic\u001b[0m\u001b[1;33m(\u001b[0m\u001b[1;34m'bash'\u001b[0m\u001b[1;33m,\u001b[0m \u001b[1;34m''\u001b[0m\u001b[1;33m,\u001b[0m \u001b[1;34m'free -m'\u001b[0m\u001b[1;33m)\u001b[0m\u001b[1;33m\u001b[0m\u001b[0m\n\u001b[0m",
+        "\u001b[1;32m/usr/local/lib/python3.4/dist-packages/IPython/core/interactiveshell.py\u001b[0m in \u001b[0;36mrun_cell_magic\u001b[1;34m(self, magic_name, line, cell)\u001b[0m\n\u001b[0;32m   2160\u001b[0m             \u001b[0mmagic_arg_s\u001b[0m \u001b[1;33m=\u001b[0m \u001b[0mself\u001b[0m\u001b[1;33m.\u001b[0m\u001b[0mvar_expand\u001b[0m\u001b[1;33m(\u001b[0m\u001b[0mline\u001b[0m\u001b[1;33m,\u001b[0m \u001b[0mstack_depth\u001b[0m\u001b[1;33m)\u001b[0m\u001b[1;33m\u001b[0m\u001b[0m\n\u001b[0;32m   2161\u001b[0m             \u001b[1;32mwith\u001b[0m \u001b[0mself\u001b[0m\u001b[1;33m.\u001b[0m\u001b[0mbuiltin_trap\u001b[0m\u001b[1;33m:\u001b[0m\u001b[1;33m\u001b[0m\u001b[0m\n\u001b[1;32m-> 2162\u001b[1;33m                 \u001b[0mresult\u001b[0m \u001b[1;33m=\u001b[0m \u001b[0mfn\u001b[0m\u001b[1;33m(\u001b[0m\u001b[0mmagic_arg_s\u001b[0m\u001b[1;33m,\u001b[0m \u001b[0mcell\u001b[0m\u001b[1;33m)\u001b[0m\u001b[1;33m\u001b[0m\u001b[0m\n\u001b[0m\u001b[0;32m   2163\u001b[0m             \u001b[1;32mreturn\u001b[0m \u001b[0mresult\u001b[0m\u001b[1;33m\u001b[0m\u001b[0m\n\u001b[0;32m   2164\u001b[0m \u001b[1;33m\u001b[0m\u001b[0m\n",
+        "\u001b[1;32m/usr/local/lib/python3.4/dist-packages/IPython/core/magics/script.py\u001b[0m in \u001b[0;36mnamed_script_magic\u001b[1;34m(line, cell)\u001b[0m\n\u001b[0;32m    146\u001b[0m             \u001b[1;32melse\u001b[0m\u001b[1;33m:\u001b[0m\u001b[1;33m\u001b[0m\u001b[0m\n\u001b[0;32m    147\u001b[0m                 \u001b[0mline\u001b[0m \u001b[1;33m=\u001b[0m \u001b[0mscript\u001b[0m\u001b[1;33m\u001b[0m\u001b[0m\n\u001b[1;32m--> 148\u001b[1;33m             \u001b[1;32mreturn\u001b[0m \u001b[0mself\u001b[0m\u001b[1;33m.\u001b[0m\u001b[0mshebang\u001b[0m\u001b[1;33m(\u001b[0m\u001b[0mline\u001b[0m\u001b[1;33m,\u001b[0m \u001b[0mcell\u001b[0m\u001b[1;33m)\u001b[0m\u001b[1;33m\u001b[0m\u001b[0m\n\u001b[0m\u001b[0;32m    149\u001b[0m \u001b[1;33m\u001b[0m\u001b[0m\n\u001b[0;32m    150\u001b[0m         \u001b[1;31m# write a basic docstring:\u001b[0m\u001b[1;33m\u001b[0m\u001b[1;33m\u001b[0m\u001b[0m\n",
+        "\u001b[1;32m/usr/local/lib/python3.4/dist-packages/IPython/core/magics/script.py\u001b[0m in \u001b[0;36mshebang\u001b[1;34m(self, line, cell)\u001b[0m\n",
+        "\u001b[1;32m/usr/local/lib/python3.4/dist-packages/IPython/core/magic.py\u001b[0m in \u001b[0;36m<lambda>\u001b[1;34m(f, *a, **k)\u001b[0m\n\u001b[0;32m    191\u001b[0m     \u001b[1;31m# but it's overkill for just that one bit of state.\u001b[0m\u001b[1;33m\u001b[0m\u001b[1;33m\u001b[0m\u001b[0m\n\u001b[0;32m    192\u001b[0m     \u001b[1;32mdef\u001b[0m \u001b[0mmagic_deco\u001b[0m\u001b[1;33m(\u001b[0m\u001b[0marg\u001b[0m\u001b[1;33m)\u001b[0m\u001b[1;33m:\u001b[0m\u001b[1;33m\u001b[0m\u001b[0m\n\u001b[1;32m--> 193\u001b[1;33m         \u001b[0mcall\u001b[0m \u001b[1;33m=\u001b[0m \u001b[1;32mlambda\u001b[0m \u001b[0mf\u001b[0m\u001b[1;33m,\u001b[0m \u001b[1;33m*\u001b[0m\u001b[0ma\u001b[0m\u001b[1;33m,\u001b[0m \u001b[1;33m**\u001b[0m\u001b[0mk\u001b[0m\u001b[1;33m:\u001b[0m \u001b[0mf\u001b[0m\u001b[1;33m(\u001b[0m\u001b[1;33m*\u001b[0m\u001b[0ma\u001b[0m\u001b[1;33m,\u001b[0m \u001b[1;33m**\u001b[0m\u001b[0mk\u001b[0m\u001b[1;33m)\u001b[0m\u001b[1;33m\u001b[0m\u001b[0m\n\u001b[0m\u001b[0;32m    194\u001b[0m \u001b[1;33m\u001b[0m\u001b[0m\n\u001b[0;32m    195\u001b[0m         \u001b[1;32mif\u001b[0m \u001b[0mcallable\u001b[0m\u001b[1;33m(\u001b[0m\u001b[0marg\u001b[0m\u001b[1;33m)\u001b[0m\u001b[1;33m:\u001b[0m\u001b[1;33m\u001b[0m\u001b[0m\n",
+        "\u001b[1;32m/usr/local/lib/python3.4/dist-packages/IPython/core/magics/script.py\u001b[0m in \u001b[0;36mshebang\u001b[1;34m(self, line, cell)\u001b[0m\n\u001b[0;32m    186\u001b[0m \u001b[1;33m\u001b[0m\u001b[0m\n\u001b[0;32m    187\u001b[0m         \u001b[1;32mtry\u001b[0m\u001b[1;33m:\u001b[0m\u001b[1;33m\u001b[0m\u001b[0m\n\u001b[1;32m--> 188\u001b[1;33m             \u001b[0mp\u001b[0m \u001b[1;33m=\u001b[0m \u001b[0mPopen\u001b[0m\u001b[1;33m(\u001b[0m\u001b[0mcmd\u001b[0m\u001b[1;33m,\u001b[0m \u001b[0mstdout\u001b[0m\u001b[1;33m=\u001b[0m\u001b[0mPIPE\u001b[0m\u001b[1;33m,\u001b[0m \u001b[0mstderr\u001b[0m\u001b[1;33m=\u001b[0m\u001b[0mPIPE\u001b[0m\u001b[1;33m,\u001b[0m \u001b[0mstdin\u001b[0m\u001b[1;33m=\u001b[0m\u001b[0mPIPE\u001b[0m\u001b[1;33m)\u001b[0m\u001b[1;33m\u001b[0m\u001b[0m\n\u001b[0m\u001b[0;32m    189\u001b[0m         \u001b[1;32mexcept\u001b[0m \u001b[0mOSError\u001b[0m \u001b[1;32mas\u001b[0m \u001b[0me\u001b[0m\u001b[1;33m:\u001b[0m\u001b[1;33m\u001b[0m\u001b[0m\n\u001b[0;32m    190\u001b[0m             \u001b[1;32mif\u001b[0m \u001b[0me\u001b[0m\u001b[1;33m.\u001b[0m\u001b[0merrno\u001b[0m \u001b[1;33m==\u001b[0m \u001b[0merrno\u001b[0m\u001b[1;33m.\u001b[0m\u001b[0mENOENT\u001b[0m\u001b[1;33m:\u001b[0m\u001b[1;33m\u001b[0m\u001b[0m\n",
+        "\u001b[1;32m/usr/lib/python3.4/subprocess.py\u001b[0m in \u001b[0;36m__init__\u001b[1;34m(self, args, bufsize, executable, stdin, stdout, stderr, preexec_fn, close_fds, shell, cwd, env, universal_newlines, startupinfo, creationflags, restore_signals, start_new_session, pass_fds)\u001b[0m\n\u001b[0;32m    846\u001b[0m                                 \u001b[0mc2pread\u001b[0m\u001b[1;33m,\u001b[0m \u001b[0mc2pwrite\u001b[0m\u001b[1;33m,\u001b[0m\u001b[1;33m\u001b[0m\u001b[0m\n\u001b[0;32m    847\u001b[0m                                 \u001b[0merrread\u001b[0m\u001b[1;33m,\u001b[0m \u001b[0merrwrite\u001b[0m\u001b[1;33m,\u001b[0m\u001b[1;33m\u001b[0m\u001b[0m\n\u001b[1;32m--> 848\u001b[1;33m                                 restore_signals, start_new_session)\n\u001b[0m\u001b[0;32m    849\u001b[0m         \u001b[1;32mexcept\u001b[0m\u001b[1;33m:\u001b[0m\u001b[1;33m\u001b[0m\u001b[0m\n\u001b[0;32m    850\u001b[0m             \u001b[1;31m# Cleanup if the child failed starting.\u001b[0m\u001b[1;33m\u001b[0m\u001b[1;33m\u001b[0m\u001b[0m\n",
+        "\u001b[1;32m/usr/lib/python3.4/subprocess.py\u001b[0m in \u001b[0;36m_execute_child\u001b[1;34m(self, args, executable, preexec_fn, close_fds, pass_fds, cwd, env, startupinfo, creationflags, shell, p2cread, p2cwrite, c2pread, c2pwrite, errread, errwrite, restore_signals, start_new_session)\u001b[0m\n\u001b[0;32m   1382\u001b[0m                             \u001b[0merrread\u001b[0m\u001b[1;33m,\u001b[0m \u001b[0merrwrite\u001b[0m\u001b[1;33m,\u001b[0m\u001b[1;33m\u001b[0m\u001b[0m\n\u001b[0;32m   1383\u001b[0m                             \u001b[0merrpipe_read\u001b[0m\u001b[1;33m,\u001b[0m \u001b[0merrpipe_write\u001b[0m\u001b[1;33m,\u001b[0m\u001b[1;33m\u001b[0m\u001b[0m\n\u001b[1;32m-> 1384\u001b[1;33m                             restore_signals, start_new_session, preexec_fn)\n\u001b[0m\u001b[0;32m   1385\u001b[0m                     \u001b[0mself\u001b[0m\u001b[1;33m.\u001b[0m\u001b[0m_child_created\u001b[0m \u001b[1;33m=\u001b[0m \u001b[1;32mTrue\u001b[0m\u001b[1;33m\u001b[0m\u001b[0m\n\u001b[0;32m   1386\u001b[0m                 \u001b[1;32mfinally\u001b[0m\u001b[1;33m:\u001b[0m\u001b[1;33m\u001b[0m\u001b[0m\n",
+        "\u001b[1;31mOSError\u001b[0m: [Errno 12] Cannot allocate memory"
+       ]
+      }
+     ],
+     "prompt_number": 5
+    },
+    {
+     "cell_type": "code",
+     "collapsed": false,
+     "input": [],
+     "language": "python",
+     "metadata": {},
+     "outputs": []
+    }
+   ],
+   "metadata": {}
+  }
+ ]
+}

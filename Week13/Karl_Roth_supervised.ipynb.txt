@@ -1,0 +1,722 @@
+{
+ "metadata": {
+  "name": "",
+  "signature": "sha256:0672b2259b1466a4bd14d5d213cfa4811aa9a562565175386368464bc8b2bbba"
+ },
+ "nbformat": 3,
+ "nbformat_minor": 0,
+ "worksheets": [
+  {
+   "cells": [
+    {
+     "cell_type": "markdown",
+     "metadata": {},
+     "source": [
+      "## Problem 13.1. Supervised Learning.\n",
+      "\n",
+      "In this problem, we will use supervised learning techniques to\n",
+      "  see if we can use machine learning techniques to\n",
+      "  predict departure delays at the O'Hare airport (ORD).\n",
+      "  For simplicity, we will use only six attributes:\n",
+      "  `Month`, `DayofMonth`, `DayOfWeek`, `CRSDepTime`, `CRSArrTime`, and `Distance`.\n",
+      "  Of the four algorithms introduced in\n",
+      "  [Lesson 1](http://nbviewer.ipython.org/github/INFO490/spring2015/blob/master/week13/intro2dm.ipynb),\n",
+      "  you are only required to perform two algorithms:\n",
+      "  $k$-NN and Decision Trees.\n",
+      "  But *scikit learn* has a unified API\n",
+      "  so it should be easy to test other algorithms on your own."
+     ]
+    },
+    {
+     "cell_type": "code",
+     "collapsed": false,
+     "input": [
+      "import numpy as np\n",
+      "import pandas as pd\n",
+      "import seaborn as sns\n",
+      "import matplotlib.pyplot as plt\n",
+      "import sklearn"
+     ],
+     "language": "python",
+     "metadata": {},
+     "outputs": [],
+     "prompt_number": 1
+    },
+    {
+     "cell_type": "markdown",
+     "metadata": {},
+     "source": [
+      "We use the 2001 on-time airline performance data set.\n",
+      "  We import the following\n",
+      "  [columns](http://stat-computing.org/dataexpo/2009/the-data.html):\n",
+      "  - Column 1: Month, 1-12\n",
+      "  - Column 2: DayofMonth, 1-31\n",
+      "  - Column 3: DayOfWeek, 1 (Monday) - 7 (Sunday)\n",
+      "  - Column 5: CRSDepTime, scheduled departure time (local, hhmm)\n",
+      "  - Column 7: CRSArrTime, scheduled arrival time (local, hhmm)\n",
+      "  - Column 16: DepDelay, departure delay, in minutes\n",
+      "  - Column 18: Distance, in miles"
+     ]
+    },
+    {
+     "cell_type": "code",
+     "collapsed": false,
+     "input": [
+      "df = pd.read_csv('/data/airline/2001.csv', encoding='latin-1', usecols=(1, 2, 3, 5, 7, 15, 16, 18))"
+     ],
+     "language": "python",
+     "metadata": {},
+     "outputs": [],
+     "prompt_number": 2
+    },
+    {
+     "cell_type": "markdown",
+     "metadata": {},
+     "source": [
+      "We use only the flights that departed from ORD.\n",
+      "  We define a flight to be delayed if its departure delay\n",
+      "  is 15 minutes or more, the same definition used\n",
+      "  by the FAA (source:\n",
+      "  [Wikipedia](http://en.wikipedia.org/wiki/Flight_cancellation_and_delay))."
+     ]
+    },
+    {
+     "cell_type": "code",
+     "collapsed": false,
+     "input": [
+      "ohare = df[df.Origin == 'ORD']\n",
+      "ohare = ohare.drop('Origin', axis=1) # we don't need the Origin column anymore.\n",
+      "ohare['Delayed'] = (ohare.DepDelay >= 15).astype(np.int) # 1 if a flight was delayed, 0 if not.\n",
+      "ohare = ohare.drop('DepDelay', axis=1) # we don't need the DepDelay column.\n",
+      "ohare = ohare.dropna()"
+     ],
+     "language": "python",
+     "metadata": {},
+     "outputs": [],
+     "prompt_number": 3
+    },
+    {
+     "cell_type": "code",
+     "collapsed": false,
+     "input": [
+      "print(ohare.head(5))"
+     ],
+     "language": "python",
+     "metadata": {},
+     "outputs": [
+      {
+       "output_type": "stream",
+       "stream": "stdout",
+       "text": [
+        "      Month  DayofMonth  DayOfWeek  CRSDepTime  CRSArrTime  Distance  Delayed\n",
+        "6367      1           1          1         951        1235       599        0\n",
+        "6368      1           2          2         951        1235       599        0\n",
+        "6369      1           3          3         951        1235       599        0\n",
+        "6370      1           4          4         951        1235       599        1\n",
+        "6371      1           5          5         951        1235       599        0\n",
+        "\n",
+        "[5 rows x 7 columns]\n"
+       ]
+      }
+     ],
+     "prompt_number": 4
+    },
+    {
+     "cell_type": "markdown",
+     "metadata": {},
+     "source": [
+      "### Function: df\\_to\\_array()\n",
+      "\n",
+      "As explained in\n",
+      "  [Lesson 1](http://nbviewer.ipython.org/github/INFO490/spring2015/blob/master/week13/intro2dm.ipynb),\n",
+      "  we need to build NumPy arrays because\n",
+      "  scikit-learn does not work natively with Pandas DataFrame.\n",
+      "  \n",
+      "- Write a function named `df_to_array()` that takes a DataFrame\n",
+      "  and returns a tuple of two NumPy ararys.\n",
+      "  The first array should have every columns and rows **except** the `Delayed` column.\n",
+      "  The second array is the labels that will be used as truth values, i.e. the `Delayed` column."
+     ]
+    },
+    {
+     "cell_type": "code",
+     "collapsed": false,
+     "input": [
+      "def df_to_array(df):\n",
+      "    '''\n",
+      "    Takes a DataFrame and returns a tuple of NumPy arrays.\n",
+      "    \n",
+      "    Parameters\n",
+      "    ----------\n",
+      "    df: A DataFrame. Has a column named 'Delayed'.\n",
+      "    \n",
+      "    Returns\n",
+      "    -------\n",
+      "    data: A NumPy array. To be used as attributes.\n",
+      "    labels: A NumPy array. To be used as truth labels.\n",
+      "    '''\n",
+      "    \n",
+      "    #Convert df to a np.array\n",
+      "    data = df[['Month','DayofMonth','DayOfWeek','CRSDepTime','CRSArrTime', 'Distance']].values\n",
+      "    labels = np.array(df['Delayed'])\n",
+      "    \n",
+      "    return data, labels"
+     ],
+     "language": "python",
+     "metadata": {},
+     "outputs": [],
+     "prompt_number": 12
+    },
+    {
+     "cell_type": "markdown",
+     "metadata": {},
+     "source": [
+      "Here are some sample outputs from my code:\n",
+      "\n",
+      "```python\n",
+      "data, labels = df_to_array(ohare)\n",
+      "print(data[:5])\n",
+      "```\n",
+      "```text\n",
+      "[[   1    1    1  951 1235  599]\n",
+      " [   1    2    2  951 1235  599]\n",
+      " [   1    3    3  951 1235  599]\n",
+      " [   1    4    4  951 1235  599]\n",
+      " [   1    5    5  951 1235  599]]\n",
+      "```\n",
+      "```python\n",
+      "print(labels[:5])\n",
+      "```\n",
+      "```text\n",
+      "[0 0 0 1 0]\n",
+      "```\n",
+      "```python\n",
+      "print(data.shape)\n",
+      "```\n",
+      "```text\n",
+      "(341284, 6)\n",
+      "```\n",
+      "```python\n",
+      "print(labels.shape)\n",
+      "```\n",
+      "```text\n",
+      "(341284,)\n",
+      "```"
+     ]
+    },
+    {
+     "cell_type": "code",
+     "collapsed": false,
+     "input": [
+      "data, labels = df_to_array(ohare)\n",
+      "print(data[:5])\n",
+      "print(labels[:5])\n",
+      "print(data.shape)\n",
+      "print(labels.shape)"
+     ],
+     "language": "python",
+     "metadata": {},
+     "outputs": [
+      {
+       "output_type": "stream",
+       "stream": "stdout",
+       "text": [
+        "[[   1    1    1  951 1235  599]\n",
+        " [   1    2    2  951 1235  599]\n",
+        " [   1    3    3  951 1235  599]\n",
+        " [   1    4    4  951 1235  599]\n",
+        " [   1    5    5  951 1235  599]]\n",
+        "[0 0 0 1 0]\n",
+        "(341284, 6)\n",
+        "(341284,)\n"
+       ]
+      }
+     ],
+     "prompt_number": 13
+    },
+    {
+     "cell_type": "markdown",
+     "metadata": {},
+     "source": [
+      "### Function: split\\_train\\_test()\n",
+      "\n",
+      "First, we need to split our data into training testing sets. Thus,\n",
+      "\n",
+      "- Write a function named `split_train_test()` function that two NumPy arrays.\n",
+      "  The first array is the attributes, and the second labels.\n",
+      "  It returns a tuple of four NumPy arrays:\n",
+      "  the training set portion of the first input array,\n",
+      "  the testing set portion of the first input array,\n",
+      "  the training set portion of the second input array,\n",
+      "  and the testing set portion of the second input array.\n",
+      "  \n",
+      "**IMPORTANT**:\n",
+      "  You **must** use the `random_state` parameter in the\n",
+      "  [`train_test_split()`](http://scikit-learn.org/stable/modules/generated/sklearn.cross_validation.train_test_split.html)\n",
+      "  function to ensure\n",
+      "  [repeatibility](http://scikit-learn.org/stable/developers/utilities.html).\n",
+      "  Also, don't forget to use the optional parameter `frac`."
+     ]
+    },
+    {
+     "cell_type": "code",
+     "collapsed": false,
+     "input": [
+      "from sklearn.utils import check_random_state\n",
+      "random_seed = 490\n",
+      "random_state = check_random_state(random_seed)"
+     ],
+     "language": "python",
+     "metadata": {},
+     "outputs": [],
+     "prompt_number": 14
+    },
+    {
+     "cell_type": "code",
+     "collapsed": false,
+     "input": [
+      "from sklearn import cross_validation\n",
+      "\n",
+      "def split(data, labels, frac=0.4, random_state=random_state):\n",
+      "    '''\n",
+      "    Splits `data` and `labels` into training and testing sets.\n",
+      "    \n",
+      "    Parameters\n",
+      "    ----------\n",
+      "    data: A NumPy array. Attributes.\n",
+      "    labels: A NumPy array. Truth labels.\n",
+      "    frac: Optional. A float. The fraction of test set.\n",
+      "    random_state: Random number generator.\n",
+      "    \n",
+      "    Returns\n",
+      "    -------\n",
+      "    A tuple of four NumPy arrays:\n",
+      "    Training set portion of 'data', test set portion of 'data',\n",
+      "    training set portion of 'labels', and test set portion of 'labels'.\n",
+      "    '''\n",
+      "    \n",
+      "    #Split the data\n",
+      "    a_train, a_test, b_train, b_test \\\n",
+      "        = cross_validation.train_test_split(data, labels, test_size = frac, random_state=random_state)\n",
+      "            \n",
+      "    return a_train, a_test, b_train, b_test"
+     ],
+     "language": "python",
+     "metadata": {},
+     "outputs": [],
+     "prompt_number": 27
+    },
+    {
+     "cell_type": "code",
+     "collapsed": false,
+     "input": [
+      "data_train, data_test, labels_train, labels_test = split(data, labels)"
+     ],
+     "language": "python",
+     "metadata": {},
+     "outputs": [],
+     "prompt_number": 28
+    },
+    {
+     "cell_type": "markdown",
+     "metadata": {},
+     "source": [
+      "### Function: learn\\_knn()\n",
+      "\n",
+      "- Write a function named `learn_knn()` that takes three NumPy arrays\n",
+      "  and an integer. The first array is the training set attributes,\n",
+      "  the second array is the training set labels, and\n",
+      "  the third array is the test set attributes.\n",
+      "  It should return a NumPy array that has predicted labels\n",
+      "  for each data point in the test set.\n",
+      "\n",
+      "  There are some\n",
+      "  [parameters](http://scikit-learn.org/stable/modules/generated/sklearn.neighbors.KNeighborsClassifier.html#sklearn.neighbors.KNeighborsClassifier)\n",
+      "  you can adjust, but you should use **only** the `n_neighbors` parameter."
+     ]
+    },
+    {
+     "cell_type": "code",
+     "collapsed": false,
+     "input": [
+      "from sklearn import neighbors\n",
+      "\n",
+      "def learn_knn(data_train, labels_train, data_test, n_neighbors):\n",
+      "    '''\n",
+      "    Takes three NumPy arrays and an integer.\n",
+      "    Trains a kNN algorithm where k = n_neighbors\n",
+      "    and returns the predicted labels for each row in 'data_test'.\n",
+      "    \n",
+      "    Parameters\n",
+      "    ----------\n",
+      "    data_train: A NumPy array. Training set attributes.\n",
+      "    labels_train: A NumPy array. Training set labels.\n",
+      "    data_test: A Numpy array. Test set attributes.\n",
+      "    n_neighbors: The number of neighbors for kNN queries.\n",
+      "    \n",
+      "    Returns\n",
+      "    -------\n",
+      "    A NumPy array that has the predictions for each row in 'data_test'.\n",
+      "    '''\n",
+      "    \n",
+      "    #Construct the Classification Model\n",
+      "    knn = neighbors.KNeighborsClassifier(n_neighbors = n_neighbors)\n",
+      "    #Train the Model\n",
+      "    knn.fit(data_train, labels_train)\n",
+      "    \n",
+      "    #Test the Model\n",
+      "    result = knn.predict(data_test)\n",
+      "    \n",
+      "    return result"
+     ],
+     "language": "python",
+     "metadata": {},
+     "outputs": [],
+     "prompt_number": 29
+    },
+    {
+     "cell_type": "code",
+     "collapsed": false,
+     "input": [
+      "labels_pred = learn_knn(data_train, labels_train, data_test, 5)"
+     ],
+     "language": "python",
+     "metadata": {},
+     "outputs": [],
+     "prompt_number": 30
+    },
+    {
+     "cell_type": "markdown",
+     "metadata": {},
+     "source": [
+      "### Performance Metrics for kNN\n",
+      "\n",
+      "There are various\n",
+      "  [performance metrics](http://scikit-learn.org/stable/modules/model_evaluation.html#)\n",
+      "  that you can use to evaluate the performance of a classifier.\n",
+      "  For example, the [`score()`] method of the $k$-nearest neighbor classifier\n",
+      "  that was demonstrated in Lesson 1 computes the\n",
+      "  [accuracy score](http://scikit-learn.org/stable/modules/generated/sklearn.metrics.accuracy_score.html#sklearn.metrics.accuracy_score).\n",
+      "  \n",
+      "```python\n",
+      "from sklearn.metrics import accuracy_score\n",
+      "print(\"The accuracy score for kNN is {0:.4f}.\".format(accuracy_score(labels_test, labels_pred)))\n",
+      "```\n",
+      "```text\n",
+      "The accuracy score for kNN is 0.7633.\n",
+      "```"
+     ]
+    },
+    {
+     "cell_type": "code",
+     "collapsed": false,
+     "input": [
+      "from sklearn.metrics import accuracy_score\n",
+      "print(\"The accuracy score for kNN is {0:.4f}.\".format(accuracy_score(labels_test, labels_pred)))"
+     ],
+     "language": "python",
+     "metadata": {},
+     "outputs": [
+      {
+       "output_type": "stream",
+       "stream": "stdout",
+       "text": [
+        "The accuracy score for kNN is 0.7633.\n"
+       ]
+      }
+     ],
+     "prompt_number": 31
+    },
+    {
+     "cell_type": "markdown",
+     "metadata": {},
+     "source": [
+      "There are pros and cons for each metric. Another popular metrics is the\n",
+      "  [F1 score](http://en.wikipedia.org/wiki/F1_score).\n",
+      "  \n",
+      "```python\n",
+      "from sklearn.metrics import f1_score\n",
+      "print(\"The F1 score for kNN is {0:.4f}.\".format(f1_score(labels_test, labels_pred)))\n",
+      "```\n",
+      "```text\n",
+      "The F1 score for kNN is 0.1885.\n",
+      "````"
+     ]
+    },
+    {
+     "cell_type": "code",
+     "collapsed": false,
+     "input": [
+      "from sklearn.metrics import f1_score\n",
+      "print(\"The F1 score for kNN is {0:.4f}.\".format(f1_score(labels_test, labels_pred)))"
+     ],
+     "language": "python",
+     "metadata": {},
+     "outputs": [
+      {
+       "output_type": "stream",
+       "stream": "stdout",
+       "text": [
+        "The F1 score for kNN is 0.1885.\n"
+       ]
+      }
+     ],
+     "prompt_number": 32
+    },
+    {
+     "cell_type": "markdown",
+     "metadata": {},
+     "source": [
+      "### Plot: Confusion Matrix for kNN.\n",
+      "\n",
+      "- Create a confusion matrix for the result you obtained\n",
+      "  from the kNN algorithm.\n",
+      "  \n",
+      "Here's what I got:\n",
+      "\n",
+      "<img src=\"images/knn_hw.png\">"
+     ]
+    },
+    {
+     "cell_type": "code",
+     "collapsed": false,
+     "input": [
+      "#### your code goes here\n",
+      "def confusion(test, predict, title):\n",
+      "    # Define names\n",
+      "    names = ['Delayed', 'Not Delayed']\n",
+      "\n",
+      "    # Make a 2D histogram from the test and result arrays\n",
+      "    pts, xe, ye = np.histogram2d(test, predict, bins=2)\n",
+      "\n",
+      "    # For simplicity we create a new DataFrame\n",
+      "    pd_pts = pd.DataFrame(pts.astype(int), index=names, columns=names )\n",
+      "    \n",
+      "    # Display heatmap and add decorations\n",
+      "    hm = sns.heatmap(pd_pts, annot=True, fmt=\"d\")\n",
+      "    hm.axes.set_title(title)\n",
+      "    \n",
+      "    return None\n",
+      "\n",
+      "confusion(labels_test, labels_pred, \"KNN-({0}) Model\".format(5))"
+     ],
+     "language": "python",
+     "metadata": {},
+     "outputs": [
+      {
+       "metadata": {},
+       "output_type": "display_data",
+       "png": "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\nlsZERUREIlImKiIiGZGXfoHQ74aCqIiIZIS6c0VERCRtykRFRCQjEjF8pomCqIiIZEQcx0Tjd8Ui\nIiIZokxUREQyIo6FRQqiIiKSEXkxDKLqzhUREYlImaiIiGREIoZ5mYKoiIhkRBzHROP3s0FERCRD\nlImKiEhGxLGwSEFUREQyIo4zFqk7V0REJCJloiIikhFxnPZPQVRERDJC1bkiIiKSNmWiIiKSEarO\nFRERiUjVuSIiIpI2ZaIiIpIRqs4VERGJSNW5IiIikjZloiIikhGqzhUREYlI1bkiIiKSNmWiIiKS\nEXEsLFIQFRGRjIjjmKi6c0VERCJSJioiIhkRx8IiBVEREcmIOM5YFL8rFhERyRBloiIikhGqzhUR\nEYlI1bkiIiKSNmWiIiKSEarOFRERiUjduSIiIpI2ZaIiIpIRqs4VERGJSN25IiIikjZloiIikhGq\nzhUREYlI3bkiIiKSNmWiIiKSEarOFRERiUjduSIiIpI2ZaIiIpIRqs4VERGJSN25IiIikjZloiIi\nkhGqzk1hZk1L29Hdv818c0REJFdlqzvXzLYBHgfqAFsDQ4CZwEiCHtUfgdPdfb2Z9QD6AgXAg+7+\niJlVAx4DmgL5wJnuPsfMWgP3AklgmrtfUN62ldadOxr4D/AS4MCrwHjgS+DZ8p5IREQkojOAWe7e\nBTgR+CdBIL3b3TsRxKXeZlYLuBroCnQG+plZXaA7sMTdDwZuBIaGxx0GXOLuBwG1zeyI8jasxCDq\n7m3dvR0wDfiDu7d09z2A3YHZ5T2RiIj8viUSicivMvwE1Avfbw8sJAiSL4bLXgK6Ae2BD919pbuv\nBSYDHYEuwPPhthOAjmF22tzdp252jHJJp7Cohbt/X/jB3b8hCKQiIiJFEr/hf6Vx92eBJmb2BfAm\n0B+o5e4bwk0WAjsCjcL3hRakLF8UHquAoPu2EbC0mG3LJZ3Coilm9iHwPkEf837Ap+U9kYiISBRm\ndhrwrbsfaWb7AA8TBMJCJUXh8iyPdLdKmTu5+yVAL4LoPwk4z93Pi3IyERH5/cpLRH+V4UCCmhzc\nfRqwM7DKzKqH63cC5oWvRin7/Wp52I2bIChGqlfMtuW75rI2MLPawLHAwe7+HNDAzOqU90QiIvL7\nlsUx0S+B/QHMrBnwM/A6cEK4/gRgHEGPaTszqx1W9HYkSP7GAyeF2x4NTHT3jcAsM+sYLj8uPEa5\n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\n",
+       "text": [
+        "<matplotlib.figure.Figure at 0x7f27fee09d30>"
+       ]
+      }
+     ],
+     "prompt_number": 38
+    },
+    {
+     "cell_type": "markdown",
+     "metadata": {},
+     "source": [
+      "### Function: learn\\_dt()\n",
+      "\n",
+      "- Write a function named `learn_dt()` that takes three NumPy arrays:\n",
+      "  the attributes of training set, the labels of training set,\n",
+      "  and the attributes of testing set.\n",
+      "  It should use the decision tree algorithm\n",
+      "  ([`sklearn.tree.DecisionTreeClassifier`](http://scikit-learn.org/stable/modules/generated/sklearn.tree.DecisionTreeClassifier.html#sklearn.tree.DecisionTreeClassifier))\n",
+      "  to predict what the labels for testing data are.\n",
+      "  \n",
+      "**IMPORTANT**:\n",
+      "  You **must** use the `random_state` parameter in the\n",
+      "  [`train_test_split()`](http://scikit-learn.org/stable/modules/generated/sklearn.cross_validation.train_test_split.html)\n",
+      "  function to ensure\n",
+      "  [repeatibility](http://scikit-learn.org/stable/developers/utilities.html)."
+     ]
+    },
+    {
+     "cell_type": "code",
+     "collapsed": false,
+     "input": [
+      "# Next lets try Decision Trees\n",
+      "from sklearn import tree\n",
+      "\n",
+      "random_state = check_random_state(random_seed)\n",
+      "\n",
+      "def learn_dt(data_train, labels_train, data_test, random_state=random_state):\n",
+      "    '''\n",
+      "    Takes three NumPy arrays.\n",
+      "    Trains a Decision Trees algorithm\n",
+      "    and returns the predicted labels for each row in 'data_test'.\n",
+      "    \n",
+      "    Parameters\n",
+      "    ----------\n",
+      "    data_train: A NumPy array. Training set attributes.\n",
+      "    labels_train: A NumPy array. Training set labels.\n",
+      "    data_test: A Numpy array. Test set attributes.\n",
+      "    \n",
+      "    Returns\n",
+      "    -------\n",
+      "    A NumPy array that has the predictions for each row in 'data_test'.\n",
+      "    '''\n",
+      "    \n",
+      "    #Build and train our model\n",
+      "    dtc = tree.DecisionTreeClassifier(random_state = random_state).fit(data_train, labels_train)\n",
+      "    \n",
+      "    #Get the predictions\n",
+      "    result = dtc.predict(data_test)\n",
+      "        \n",
+      "    return result"
+     ],
+     "language": "python",
+     "metadata": {},
+     "outputs": [],
+     "prompt_number": 61
+    },
+    {
+     "cell_type": "code",
+     "collapsed": false,
+     "input": [
+      "labels_pred = learn_dt(data_train, labels_train, data_test)"
+     ],
+     "language": "python",
+     "metadata": {},
+     "outputs": [],
+     "prompt_number": 62
+    },
+    {
+     "cell_type": "markdown",
+     "metadata": {},
+     "source": [
+      "### Performance Metrics for DT\n",
+      "\n",
+      "We again compute the accuracy score for the Decision Trees classifier.\n",
+      "\n",
+      "```python\n",
+      "print(\"The accuracy score for DT is {0:.4f}.\".format(accuracy_score(labels_test, labels_pred)))\n",
+      "```\n",
+      "```text\n",
+      "The accuracy score for DT is 0.7308.\n",
+      "```"
+     ]
+    },
+    {
+     "cell_type": "code",
+     "collapsed": false,
+     "input": [
+      "print(\"The accuracy score for DT is {0:.4f}.\".format(accuracy_score(labels_test, labels_pred)))"
+     ],
+     "language": "python",
+     "metadata": {},
+     "outputs": [
+      {
+       "output_type": "stream",
+       "stream": "stdout",
+       "text": [
+        "The accuracy score for DT is 0.7308.\n"
+       ]
+      }
+     ],
+     "prompt_number": 63
+    },
+    {
+     "cell_type": "markdown",
+     "metadata": {},
+     "source": [
+      "And we compute the F1 score.\n",
+      "\n",
+      "```python\n",
+      "print(\"The F1 score for DT is {0:.4f}.\".format(f1_score(labels_test, labels_pred)))\n",
+      "```\n",
+      "```text\n",
+      "The F1 score for DT is 0.3590.\n",
+      "```"
+     ]
+    },
+    {
+     "cell_type": "code",
+     "collapsed": false,
+     "input": [
+      "print(\"The F1 score for DT is {0:.4f}.\".format(f1_score(labels_test, labels_pred)))"
+     ],
+     "language": "python",
+     "metadata": {},
+     "outputs": [
+      {
+       "output_type": "stream",
+       "stream": "stdout",
+       "text": [
+        "The F1 score for DT is 0.3590.\n"
+       ]
+      }
+     ],
+     "prompt_number": 64
+    },
+    {
+     "cell_type": "markdown",
+     "metadata": {},
+     "source": [
+      "### Plot: Confusion Matrix for Decision Trees.\n",
+      "\n",
+      "- Create a confusion matrix for the result you obtained\n",
+      "  from the Decison Tree algorithm. Here's what what I got:\n",
+      "\n",
+      "<img src=\"images/dt_hw.png\">"
+     ]
+    },
+    {
+     "cell_type": "code",
+     "collapsed": false,
+     "input": [
+      "#### your code goes here\n",
+      "confusion(labels_test, labels_pred, \"KNN-({0}) Model\".format(5))"
+     ],
+     "language": "python",
+     "metadata": {},
+     "outputs": [
+      {
+       "metadata": {},
+       "output_type": "display_data",
+       "png": "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\n",
+       "text": [
+        "<matplotlib.figure.Figure at 0x7f2800520080>"
+       ]
+      }
+     ],
+     "prompt_number": 66
+    },
+    {
+     "cell_type": "markdown",
+     "metadata": {},
+     "source": [
+      "### Summary\n",
+      "\n",
+      "So it seems that the decision tree classifier is better\n",
+      "  at predicting delays (10,294)\n",
+      "  than the $k$-nearest neighbor classifier (3,752).\n",
+      "  However, the $k$-nearest neighbor classifer classified\n",
+      "  more non-delays correct (100,447)\n",
+      "  than the decision tree classifier (89,464).\n",
+      "  \n",
+      "We have also seen that the kNN classifier outperforms\n",
+      "  the DT in accuracy score, while the F1 score of DT\n",
+      "  is higher than that of kNN. In our case, one classifier\n",
+      "  did not clearly outperform another, and which classifier\n",
+      "  to use would depend on specific use cases, e.g.\n",
+      "  if we give more weight to the correct prediction of\n",
+      "  non-dalays vs. delays."
+     ]
+    },
+    {
+     "cell_type": "code",
+     "collapsed": false,
+     "input": [],
+     "language": "python",
+     "metadata": {},
+     "outputs": []
+    }
+   ],
+   "metadata": {}
+  }
+ ]
+}
